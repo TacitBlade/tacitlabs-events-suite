@@ -6,7 +6,7 @@ import re
 
 st.set_page_config(page_title="Agency Event Viewer", layout="wide")
 
-# --- Load Excel File or Uploader ---
+# --- Load Excel File or Upload ---
 excel_path = Path("data/July_2025_UK_AgencyHost_Events.xlsx")
 if not excel_path.exists():
     st.warning("Excel file not found. Please upload below:")
@@ -29,11 +29,10 @@ else:
 # --- Filter by Agency ---
 df = df[df["Agency Name"].isin(["Alpha", "RCKLESS"])]
 
-# --- Format Date and Day ---
+# --- Format Date, Day, PK Time ---
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
 df["Day"] = pd.to_datetime(df["Day"], errors="coerce").dt.day_name()
 
-# --- Parse and Format PK Time from 24hr to 12hr ---
 def parse_pk_time(value):
     value = str(value).strip()
     if re.match(r"^\d{1,2}:\d{2}$", value):
@@ -53,20 +52,23 @@ columns_to_remove = [
 unnamed_cols = [col for col in df.columns if "Unnamed" in str(col)]
 df.drop(columns=columns_to_remove + unnamed_cols, inplace=True, errors="ignore")
 
-# --- Add "All PK Points" per Agency from All Sheets ---
+# --- Compute All PK Points Across All Sheets (Safe) ---
 pk_agg = []
 for name in xls.sheet_names:
     sheet_df = xls.parse(name)
-    sheet_df["Agency Name"] = sheet_df["Agency Name"].astype(str)
-    sheet_df["PK POINT"] = pd.to_numeric(sheet_df.get("PK POINT"), errors="coerce")
-    filtered = sheet_df[sheet_df["Agency Name"].isin(["Alpha", "RCKLESS"])]
-    pk_total = filtered.groupby("Agency Name")["PK POINT"].sum().reset_index()
-    pk_agg.append(pk_total)
-pk_summary = pd.concat(pk_agg, ignore_index=True).groupby("Agency Name").sum().reset_index()
-pk_summary.rename(columns={"PK POINT": "All PK Points"}, inplace=True)
-df = df.merge(pk_summary, on="Agency Name", how="left")
+    if "Agency Name" in sheet_df.columns and "PK POINT" in sheet_df.columns:
+        sheet_df["Agency Name"] = sheet_df["Agency Name"].astype(str)
+        sheet_df["PK POINT"] = pd.to_numeric(sheet_df["PK POINT"], errors="coerce")
+        filtered = sheet_df[sheet_df["Agency Name"].isin(["Alpha", "RCKLESS"])]
+        pk_total = filtered.groupby("Agency Name")["PK POINT"].sum().reset_index()
+        pk_agg.append(pk_total)
 
-# --- Filtering UI ---
+if pk_agg:
+    pk_summary = pd.concat(pk_agg, ignore_index=True).groupby("Agency Name").sum().reset_index()
+    pk_summary.rename(columns={"PK POINT": "All PK Points"}, inplace=True)
+    df = df.merge(pk_summary, on="Agency Name", how="left")
+
+# --- Filter Controls ---
 day = st.multiselect("Day", df["Day"].dropna().unique())
 date = st.multiselect("Date", df["Date"].dropna().unique())
 id1_input = st.text_input("Search by ID 1")
@@ -83,10 +85,10 @@ if id1_input:
 if id2_input:
     filtered_df = filtered_df[filtered_df["ID 2"].astype(str).str.contains(id2_input, case=False, na=False)]
 
-# --- Display Data ---
+# --- Display Filtered Results ---
 st.dataframe(filtered_df)
 
-# --- Download Button ---
+# --- Excel Download ---
 def convert_df_to_excel(dataframe):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
