@@ -20,25 +20,21 @@ def load_sheets(uploaded_file):
         st.error(f"Error loading Excel file:\n\n{e}")
         st.stop()
 
-def filter_by_agency(df: pd.DataFrame, agencies: list[str], agency_col="Agency Name") -> pd.DataFrame:
-    """Keep only rows where df[agency_col] is in agencies."""
-    if agency_col not in df.columns:
-        return pd.DataFrame(columns=df.columns)
-    return df[df[agency_col].isin(agencies)].reset_index(drop=True)
-
-def format_date_column(df: pd.DataFrame, date_col="Date") -> pd.DataFrame:
-    """Convert datetime to DD/MM/YYYY (no time)."""
-    if date_col in df.columns:
-        df[date_col] = pd.to_datetime(df[date_col]).dt.strftime("%d/%m/%Y")
+def filter_dataframe(df: pd.DataFrame, selected_agencies: list[str]) -> pd.DataFrame:
+    """Filter by Agency Name and format Date."""
+    df = df[df["Agency Name"].isin(selected_agencies)].copy()
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
     return df
 
 def main():
     st.set_page_config(page_title="Agency Filter App", layout="wide")
     st.title("✨ Star Task PK & Talent PK Agency Filter")
     st.write(
-        "Upload your Excel workbook and select agencies to include (filtering on “Agency Name”).\n\n"
-        "Results will show only Date, PK Time, Agency Name, ID 1, Agency Name(1), and ID 2,\n"
-        "with dates formatted as DD/MM/YYYY."
+        "Upload your Excel workbook to filter Star Task PK and Talent PK sheets by:\n"
+        "- Agency Name (only Alpha Agency and Rckless)\n"
+        "- No dropdowns—use native Streamlit filters below\n"
+        "- Display columns: Date, PK Time, Agency Name, ID 1, Agency Name(1), ID 2"
     )
 
     uploaded_file = st.file_uploader("Upload Excel workbook (.xlsx)", type=["xlsx"])
@@ -49,69 +45,66 @@ def main():
     # Load sheets
     sheets = load_sheets(uploaded_file)
 
-    # Sidebar: agency selector
-    st.sidebar.header("Filter Options")
-    agency_lists = [
-        df["Agency Name"]
-        for df in sheets.values()
-        if isinstance(df, pd.DataFrame) and "Agency Name" in df.columns
-    ]
-    if agency_lists:
-        all_agencies = (
-            pd.concat(agency_lists, ignore_index=True)
-              .dropna()
-              .unique()
-              .tolist()
-        )
-    else:
-        all_agencies = []
-        st.sidebar.warning("No 'Agency Name' column found.")
+    # Hard-coded filter for agencies
+    selected_agencies = ["Alpha Agency", "Rckless"]
 
-    selected_agencies = st.sidebar.multiselect(
-        "Select agencies to include",
-        options=all_agencies,
-        default=[a for a in ["Alpha Agency", "Rckless"] if a in all_agencies]
-    )
+    # Define final column set
+    display_columns = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
 
-    # Filter each sheet
-    df_star   = filter_by_agency(sheets.get("Star Task PK", pd.DataFrame()), selected_agencies)
-    df_talent = filter_by_agency(sheets.get("Talent PK",    pd.DataFrame()), selected_agencies)
+    def prep(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return pd.DataFrame(columns=display_columns)
+        df = filter_dataframe(df, selected_agencies)
+        df = df[[col for col in display_columns if col in df.columns]]
+        return df
 
-    # Columns to display
-    cols_to_show = [
-        "Date",
-        "PK Time",
-        "Agency Name",
-        "ID 1",
-        "Agency Name(1)",
-        "ID 2"
-    ]
+    df_star   = prep(sheets.get("Star Task PK", pd.DataFrame()))
+    df_talent = prep(sheets.get("Talent PK",    pd.DataFrame()))
 
-    def prepare(df: pd.DataFrame) -> pd.DataFrame:
-        df = format_date_column(df, date_col="Date")
-        return df[[c for c in cols_to_show if c in df.columns]]
+    # Native filters (no dropdowns)
+    st.subheader("🔍 Apply Data Filters")
 
-    df_star_disp   = prepare(df_star)
-    df_talent_disp = prepare(df_talent)
+    def apply_native_filters(df: pd.DataFrame, label: str) -> pd.DataFrame:
+        if df.empty:
+            st.warning(f"No data available in {label} after filtering.")
+            return df
 
-    # Display filtered sheets
-    st.subheader("Star Task PK – Filtered")
-    st.dataframe(df_star_disp)
+        # Apply column filters directly
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            day_filter = st.text_input(f"{label} — Filter by Day (e.g. Monday)", "")
+        with col2:
+            id1_filter = st.text_input(f"{label} — Filter by ID 1", "")
+        with col3:
+            id2_filter = st.text_input(f"{label} — Filter by ID 2", "")
 
-    st.subheader("Talent PK – Filtered")
-    st.dataframe(df_talent_disp)
+        if "Day" in df.columns and day_filter:
+            df = df[df["Day"].astype(str).str.contains(day_filter, case=False, na=False)]
+        if "ID 1" in df.columns and id1_filter:
+            df = df[df["ID 1"].astype(str).str.contains(id1_filter, case=False, na=False)]
+        if "ID 2" in df.columns and id2_filter:
+            df = df[df["ID 2"].astype(str).str.contains(id2_filter, case=False, na=False)]
+        return df
 
-    # Combine & download
-    combined = pd.concat([df_star_disp, df_talent_disp], ignore_index=True)
-    st.subheader("Combined Results")
+    df_star_filtered   = apply_native_filters(df_star, "Star Task PK")
+    df_talent_filtered = apply_native_filters(df_talent, "Talent PK")
+
+    st.subheader("📋 Star Task PK – Results")
+    st.dataframe(df_star_filtered)
+
+    st.subheader("📋 Talent PK – Results")
+    st.dataframe(df_talent_filtered)
+
+    combined = pd.concat([df_star_filtered, df_talent_filtered], ignore_index=True)
+    st.subheader("📎 Combined Results")
     st.dataframe(combined)
 
     if not combined.empty:
         csv_bytes = combined.to_csv(index=False).encode("utf-8")
         st.download_button(
-            "Download filtered data as CSV",
+            "Download combined CSV",
             data=csv_bytes,
-            file_name="filtered_agencies.csv",
+            file_name="filtered_agency_data.csv",
             mime="text/csv"
         )
 
