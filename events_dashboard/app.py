@@ -5,10 +5,10 @@ from io import BytesIO
 
 st.set_page_config(page_title="Agency Event Viewer", layout="wide")
 
-# --- Load Excel File or Prompt Upload ---
+# --- Load File or Prompt for Upload ---
 excel_path = Path("data/July_2025_UK_AgencyHost_Events.xlsx")
 if not excel_path.exists():
-    st.warning("No file found at expected path. Please upload your Excel file:")
+    st.warning("Excel file not found. Please upload below:")
     uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
     if not uploaded_file:
         st.stop()
@@ -16,7 +16,7 @@ if not excel_path.exists():
 else:
     xls = pd.ExcelFile(excel_path)
 
-# --- Sheet Selector with ALL Option ---
+# --- Sheet Selector with "ALL" Option ---
 sheet_options = ["ALL"] + xls.sheet_names
 selected_sheet = st.sidebar.selectbox("Select Sheet", sheet_options)
 
@@ -25,16 +25,22 @@ if selected_sheet == "ALL":
 else:
     df = xls.parse(selected_sheet)
 
-# --- Filter Agencies ---
+# --- Agency Filter ---
 df = df[df["Agency Name"].isin(["Alpha", "RCKLESS"])]
 
-# --- Format Date, Day, PK Time ---
+# --- Format Columns ---
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
 df["Day"] = pd.to_datetime(df["Day"], errors="coerce").dt.day_name()
-df["PK Time"] = pd.to_datetime(df["PK Time"], errors="coerce").dt.strftime("%I:%M %p")
-df["PK Time"] = df["PK Time"].fillna("N/A")
 
-# --- Remove Unwanted Columns ---
+# Parse 24hr time strings in PK Time column
+def parse_pk_time(value):
+    try:
+        return pd.to_datetime(value, format="%H:%M").strftime("%I:%M %p")
+    except:
+        return "N/A"
+df["PK Time"] = df["PK Time"].apply(parse_pk_time)
+
+# --- Clean Unwanted Columns ---
 columns_to_remove = [
     "UID 1", "UID 2", "PK POINT", "PK POINT.1", "Result", "Result.1",
     "Reward", "Reward.1", "Note", "Theme"
@@ -42,20 +48,21 @@ columns_to_remove = [
 unnamed_cols = [col for col in df.columns if "Unnamed" in str(col)]
 df.drop(columns=columns_to_remove + unnamed_cols, inplace=True, errors="ignore")
 
-# --- Calculate All PK Points Across Sheets ---
+# --- Compute 'All PK Points' Across All Sheets ---
 pk_agg = []
 for name in xls.sheet_names:
-    sheet_df = xls.parse(name)
-    sheet_df["Agency Name"] = sheet_df["Agency Name"].astype(str)
-    sheet_df["PK POINT"] = pd.to_numeric(sheet_df.get("PK POINT"), errors="coerce")
-    filtered = sheet_df[sheet_df["Agency Name"].isin(["Alpha", "RCKLESS"])]
-    pk_total = filtered.groupby("Agency Name")["PK POINT"].sum().reset_index()
-    pk_agg.append(pk_total)
+    sheet = xls.parse(name)
+    sheet["Agency Name"] = sheet["Agency Name"].astype(str)
+    sheet["PK POINT"] = pd.to_numeric(sheet.get("PK POINT"), errors="coerce")
+    filtered_agencies = sheet[sheet["Agency Name"].isin(["Alpha", "RCKLESS"])]
+    group_sum = filtered_agencies.groupby("Agency Name")["PK POINT"].sum().reset_index()
+    pk_agg.append(group_sum)
 pk_summary = pd.concat(pk_agg, ignore_index=True).groupby("Agency Name").sum().reset_index()
 pk_summary.rename(columns={"PK POINT": "All PK Points"}, inplace=True)
+
 df = df.merge(pk_summary, on="Agency Name", how="left")
 
-# --- Filters ---
+# --- Filter Inputs ---
 day = st.multiselect("Day", df["Day"].dropna().unique())
 date = st.multiselect("Date", df["Date"].dropna().unique())
 id1_input = st.text_input("Search by ID 1")
@@ -75,7 +82,7 @@ if id2_input:
 # --- Display Filtered Data ---
 st.dataframe(filtered_df)
 
-# --- Download Results ---
+# --- Download Filtered Results ---
 def convert_df_to_excel(dataframe):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
