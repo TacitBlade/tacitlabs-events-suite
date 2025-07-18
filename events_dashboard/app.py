@@ -27,6 +27,8 @@ df = df[df["Agency Name"].isin(["Alpha", "RCKLESS"])]
 # --- Format Date & Time ---
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.date.astype(str)
 df["PK Time"] = pd.to_datetime(df["PK Time"], errors="coerce").dt.strftime("%I:%M %p")
+# Ensure 'Day' stays as string—not a datetime
+df["Day"] = df["Day"].astype(str)
 
 # --- Filters ---
 day = st.multiselect("Day", df["Day"].dropna().unique())
