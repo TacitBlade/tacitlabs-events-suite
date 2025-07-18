@@ -10,7 +10,7 @@ def render_filter_panel(date_options):
 
     with col1:
         selected_date = st.date_input(
-            "Pick a Date (DD/MM/YYYY)",
+            "Pick a Date – DD/MM/YYYY",  # ✅ Brackets removed
             value=None,
             min_value=min(date_options),
             max_value=max(date_options),
@@ -24,7 +24,7 @@ def render_filter_panel(date_options):
     return selected_date, id1_input, id2_input
 
 def render_results(df_star, df_talent):
-    """Displays two sheets and a combined, sorted view with export."""
+    """Displays both sheets and a sorted, merged table."""
     st.subheader("📋 Star Task PK")
     star_formatted = format_for_display(df_star, DISPLAY_COLUMNS)
     st.dataframe(star_formatted)
@@ -39,15 +39,14 @@ def render_results(df_star, df_talent):
         ["Talent PK"] * len(talent_formatted)
     )
 
-    # Sort chronologically if columns are available
     sort_columns = [col for col in ["Date", "PK Time"] if col in combined.columns]
-    combined = combined.sort_values(by=sort_columns).reset_index(drop=True)
+    combined_sorted = combined.sort_values(by=sort_columns).reset_index(drop=True)
 
-    st.subheader("📎 Combined Results (Chronological)")
-    st.dataframe(combined)
+    st.subheader("📎 Combined Results – Chronological")
+    st.dataframe(combined_sorted)
 
-    if not combined.empty:
-        csv = combined.to_csv(index=False).encode("utf-8")
+    if not combined_sorted.empty:
+        csv = combined_sorted.to_csv(index=False).encode("utf-8")
         st.download_button(
             label="⬇️ Download Combined CSV",
             data=csv,
