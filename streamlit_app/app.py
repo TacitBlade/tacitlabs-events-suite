@@ -1,121 +1,28 @@
 import streamlit as st
-import pandas as pd
-
-@st.cache_data
-def load_sheets(uploaded_file):
-    try:
-        return pd.read_excel(
-            uploaded_file,
-            sheet_name=["Star Task PK", "Talent PK"]
-        )
-    except ImportError:
-        st.error("Missing engine for .xlsx files. Please install:\n\n    pip install openpyxl\n\nThen restart.")
-        st.stop()
-    except Exception as e:
-        st.error(f"Error loading Excel file:\n\n{e}")
-        st.stop()
-
-def clean_and_filter_agencies(df: pd.DataFrame, agencies: list[str]) -> pd.DataFrame:
-    df = df.copy()
-    df["Agency Name"] = df["Agency Name"].astype(str).str.strip().str.upper()
-    agencies = [a.upper() for a in agencies]
-    df = df[df["Agency Name"].isin(agencies)]
-
-    if "Date" in df.columns:
-        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-    return df
-
-def apply_filters(df: pd.DataFrame, selected_date, id1_filter, id2_filter):
-    if selected_date:
-        df = df[df["Date"].dt.date == selected_date]
-    if "ID 1" in df.columns and id1_filter:
-        df = df[df["ID 1"].astype(str).str.contains(id1_filter, case=False, na=False)]
-    if "ID 2" in df.columns and id2_filter:
-        df = df[df["ID 2"].astype(str).str.contains(id2_filter, case=False, na=False)]
-    return df
-
-def format_display(df: pd.DataFrame) -> pd.DataFrame:
-    if "Date" in df.columns:
-        df["Date"] = df["Date"].dt.strftime("%d/%m/%Y")
-    return df
+from loaders import load_workbook
+from filters import clean_and_filter, apply_manual_filters
+from layout import render_filter_panel, render_results
+from config import DEFAULT_AGENCIES, DISPLAY_COLUMNS
 
 def main():
-    st.set_page_config(page_title="Agency Filter App", layout="wide")
-    st.title("✨ Star Task PK & Talent PK Filter")
-    st.write(
-        "Upload your Excel workbook to filter event data by:\n"
-        "- Agencies: Alpha Agency & Rckless\n"
-        "- Calendar picker for Date (DD/MM/YYYY)\n"
-        "- Manual filters for ID 1 and ID 2\n"
-        "- Display: Date, PK Time, Agency Name, ID 1, Agency Name(1), ID 2\n"
-        "- Final results sorted in chronological order"
-    )
+    st.set_page_config(page_title="Agency Event Filter", layout="wide")
+    st.title("📊 UK Agency & Host Event Viewer")
 
     uploaded_file = st.file_uploader("Upload Excel workbook (.xlsx)", type=["xlsx"])
     if not uploaded_file:
-        st.info("Awaiting your Excel file upload…")
+        st.info("Upload your event workbook to begin.")
         return
 
-    sheets = load_sheets(uploaded_file)
-    selected_agencies = ["Alpha Agency", "Rckless"]
-    target_columns = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
+    sheets = load_workbook(uploaded_file)
+    df_star, df_talent, date_options = clean_and_filter(sheets, DEFAULT_AGENCIES)
 
-    def prepare(df: pd.DataFrame):
-        if df.empty:
-            return pd.DataFrame(columns=target_columns)
-        df = clean_and_filter_agencies(df, selected_agencies)
-        return df[[c for c in target_columns if c in df.columns]]
+    # ⏱️ User inputs
+    selected_date, id1_input, id2_input = render_filter_panel(date_options)
 
-    df_star = prepare(sheets.get("Star Task PK", pd.DataFrame()))
-    df_talent = prepare(sheets.get("Talent PK", pd.DataFrame()))
-    df_all = pd.concat([df_star, df_talent], ignore_index=True).dropna(subset=["Date"])
+    df_star_filtered   = apply_manual_filters(df_star, selected_date, id1_input, id2_input)
+    df_talent_filtered = apply_manual_filters(df_talent, selected_date, id1_input, id2_input)
 
-    available_dates = sorted(df_all["Date"].dt.date.unique())
-
-    st.subheader("🔍 Filters")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        selected_date = st.date_input(
-            "Select Date (DD/MM/YYYY)",
-            value=None,
-            min_value=min(available_dates),
-            max_value=max(available_dates),
-            format="DD/MM/YYYY"
-        )
-    with col2:
-        id1_input = st.text_input("Filter by ID 1", "")
-    with col3:
-        id2_input = st.text_input("Filter by ID 2", "")
-
-    df_star_filtered = apply_filters(df_star, selected_date, id1_input, id2_input)
-    df_talent_filtered = apply_filters(df_talent, selected_date, id1_input, id2_input)
-
-    df_star_display = format_display(df_star_filtered)
-    df_talent_display = format_display(df_talent_filtered)
-
-    st.subheader("📋 Star Task PK – Results")
-    st.dataframe(df_star_display)
-
-    st.subheader("📋 Talent PK – Results")
-    st.dataframe(df_talent_display)
-
-    combined = pd.concat([df_star_display, df_talent_display], ignore_index=True)
-
-    # Sort combined results by Date and PK Time if available
-    sort_columns = [col for col in ["Date", "PK Time"] if col in combined.columns]
-    combined_sorted = combined.sort_values(by=sort_columns).reset_index(drop=True)
-
-    st.subheader("📎 Combined Results (Chronological)")
-    st.dataframe(combined_sorted)
-
-    if not combined_sorted.empty:
-        csv_bytes = combined_sorted.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            "Download Combined CSV",
-            data=csv_bytes,
-            file_name="filtered_agency_data.csv",
-            mime="text/csv"
-        )
+    render_results(df_star_filtered, df_talent_filtered)
 
 if __name__ == "__main__":
     main()
