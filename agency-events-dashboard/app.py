@@ -10,11 +10,22 @@ st.set_page_config(
     page_icon="assets/favicon.ico",
     layout="wide"
 )
+
+st.image("assets/logo.png", width=120)
+
 with open("branding.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
     #logo
     st.image("assets/logo.png", width=120)
+
+#session_state["theme"]
+if st.toggle("🌙 Enable Dark Mode"):
+    with open("dark.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+else:
+    with open("branding.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # ─── Welcome Card ─────────────────────────────────────────────────────────────
 st.markdown(
