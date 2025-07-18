@@ -5,9 +5,16 @@ from utils import apply_filters
 from config import APP_NAME, VERSION, CONTACT_EMAIL, AGENCY_URL
 
 # ─── Page Config & Styling ───────────────────────────────────────────────────
-st.set_page_config(page_title=APP_NAME, page_icon="📊", layout="wide")
+st.set_page_config(
+    page_title=APP_NAME,
+    page_icon="assets/favicon.ico",
+    layout="wide"
+)
 with open("branding.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+    #logo
+    st.image("assets/logo.png", width=120)
 
 # ─── Welcome Card ─────────────────────────────────────────────────────────────
 st.markdown(
