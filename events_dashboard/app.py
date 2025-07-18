@@ -5,49 +5,63 @@ from io import BytesIO
 
 st.set_page_config(page_title="Agency Event Viewer", layout="wide")
 
-# --- Load Excel File or Prompt Upload ---
-excel_path = Path("events_dashboard/assets/July 2025 UK Agency&Host Events .xlsx")
+# --- Load File or Uploader ---
+excel_path = Path("data/July_2025_UK_AgencyHost_Events.xlsx")
 if not excel_path.exists():
-    st.warning("No file found at expected path. Please upload your Excel file:")
+    st.warning("Excel file not found. Please upload your file:")
     uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
-    if uploaded_file:
-        xls = pd.ExcelFile(uploaded_file)
-    else:
-        st.stop()  # Wait for upload
+    if not uploaded_file:
+        st.stop()
+    xls = pd.ExcelFile(uploaded_file)
 else:
     xls = pd.ExcelFile(excel_path)
 
-# --- Sheet Selector ---
+# --- Select Sheet ---
 sheet_name = st.sidebar.selectbox("Select Sheet", xls.sheet_names)
 df = xls.parse(sheet_name)
 
-# --- Filter for Alpha & RCKLESS ---
+# --- Filter for Agencies Only ---
 df = df[df["Agency Name"].isin(["Alpha", "RCKLESS"])]
 
-# --- Format Date & Time ---
-df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.date.astype(str)
-df["PK Time"] = pd.to_datetime(df["PK Time"], errors="coerce").dt.strftime("%I:%M %p")
-# Ensure 'Day' stays as string—not a datetime
+# --- Clean & Format Columns ---
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
 df["Day"] = pd.to_datetime(df["Day"], errors="coerce").dt.day_name()
+df["PK Time"] = pd.to_datetime(df["PK Time"], errors="coerce").dt.strftime("%I:%M %p")
+df["PK Time"] = df["PK Time"].fillna("")
 
-# --- Filters ---
+# --- Remove Unwanted Columns ---
+columns_to_remove = [
+    "UID 1", "UID 2", "PK POINT", "PK POINT.1", "Result", "Result.1",
+    "Reward", "Reward.1", "Note", "Theme"
+]
+unnamed_cols = [col for col in df.columns if "Unnamed" in str(col)]
+df.drop(columns=columns_to_remove + unnamed_cols, inplace=True, errors="ignore")
+
+# --- Viewer Filters ---
 day = st.multiselect("Day", df["Day"].dropna().unique())
+date = st.multiselect("Date", df["Date"].dropna().unique())
 id1 = st.multiselect("ID 1", df["ID 1"].dropna().unique())
 id2 = st.multiselect("ID 2", df["ID 2"].dropna().unique())
 
+# --- Apply Filters ---
 filtered_df = df.copy()
-if day: filtered_df = filtered_df[filtered_df["Day"].isin(day)]
-if id1: filtered_df = filtered_df[filtered_df["ID 1"].isin(id1)]
-if id2: filtered_df = filtered_df[filtered_df["ID 2"].isin(id2)]
+if day:
+    filtered_df = filtered_df[filtered_df["Day"].isin(day)]
+if date:
+    filtered_df = filtered_df[filtered_df["Date"].isin(date)]
+if id1:
+    filtered_df = filtered_df[filtered_df["ID 1"].isin(id1)]
+if id2:
+    filtered_df = filtered_df[filtered_df["ID 2"].isin(id2)]
 
-# --- Display Data ---
+# --- Display Filtered Data ---
 st.dataframe(filtered_df)
 
-# --- Export as Excel ---
-def convert_df_to_excel(df):
+# --- Download Filtered Results ---
+def convert_df_to_excel(dataframe):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False)
+        dataframe.to_excel(writer, index=False)
     return output.getvalue()
 
 st.download_button(
