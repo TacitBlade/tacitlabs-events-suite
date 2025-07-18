@@ -11,10 +11,9 @@ def load_sheets(uploaded_file):
         )
     except ImportError:
         st.error(
-            "Unable to load .xlsx sheets because the engine is missing.\n\n"
-            "Please install openpyxl:\n\n"
+            "Missing engine for .xlsx files. Install with:\n\n"
             "    pip install openpyxl\n\n"
-            "Then restart the app."
+            "and restart."
         )
         st.stop()
     except Exception as e:
@@ -34,8 +33,8 @@ def main():
     st.set_page_config(page_title="Agency Filter App", layout="wide")
     st.title("✨ Star Task PK & Talent PK Agency Filter")
     st.write(
-        "Upload your Excel workbook, then select which agencies to include "
-        "from the Star Task PK and Talent PK sheets (looking at ‘Agency Name’)."
+        "Upload your Excel workbook and select agencies to include—filtering on “Agency Name.”\n\n"
+        "Results show only Date, Day, PK Time, Agency Name, ID 1, ID 2."
     )
 
     uploaded_file = st.file_uploader("Upload Excel workbook (.xlsx)", type=["xlsx"])
@@ -46,24 +45,23 @@ def main():
     # Load sheets
     sheets = load_sheets(uploaded_file)
 
-    # Build sidebar selections
+    # Sidebar: agency selector
     st.sidebar.header("Filter Options")
-    agency_lists = [
+    agency_cols = [
         df["Agency Name"]
         for df in sheets.values()
         if isinstance(df, pd.DataFrame) and "Agency Name" in df.columns
     ]
-
-    if agency_lists:
+    if agency_cols:
         all_agencies = (
-            pd.concat(agency_lists, ignore_index=True)
+            pd.concat(agency_cols, ignore_index=True)
               .dropna()
               .unique()
               .tolist()
         )
     else:
         all_agencies = []
-        st.sidebar.warning("No 'Agency Name' column found in either sheet.")
+        st.sidebar.warning("No 'Agency Name' column found.")
 
     selected_agencies = st.sidebar.multiselect(
         "Select agencies to include",
@@ -73,24 +71,30 @@ def main():
 
     # Filter each sheet
     df_star   = filter_by_agency(sheets.get("Star Task PK", pd.DataFrame()), selected_agencies)
-    df_talent = filter_by_agency(sheets.get("Talent PK",     pd.DataFrame()), selected_agencies)
+    df_talent = filter_by_agency(sheets.get("Talent PK",    pd.DataFrame()), selected_agencies)
 
-    # Display results
+    # Columns to display
+    cols_to_show = ["Date", "Day", "PK Time", "Agency Name", "ID 1", "ID 2"]
+
+    def subset(df: pd.DataFrame) -> pd.DataFrame:
+        return df[[c for c in cols_to_show if c in df.columns]]
+
+    df_star_disp   = subset(df_star)
+    df_talent_disp = subset(df_talent)
+
+    # Display filtered sheets
     st.subheader("Star Task PK – Filtered")
-    st.dataframe(df_star)
+    st.dataframe(df_star_disp)
 
     st.subheader("Talent PK – Filtered")
-    st.dataframe(df_talent)
+    st.dataframe(df_talent_disp)
 
-    # Combine & download
-    combined = pd.concat([
-        df_star.assign(Source="Star Task PK"),
-        df_talent.assign(Source="Talent PK")
-    ], ignore_index=True)
-
+    # Combine and display
+    combined = pd.concat([df_star_disp, df_talent_disp], ignore_index=True)
     st.subheader("Combined Results")
     st.dataframe(combined)
 
+    # Download button
     if not combined.empty:
         csv_bytes = combined.to_csv(index=False).encode("utf-8")
         st.download_button(
