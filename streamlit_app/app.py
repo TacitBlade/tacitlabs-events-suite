@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 
-# Cache the workbook-loading for performance
 @st.cache_data
 def load_sheets(uploaded_file):
     try:
@@ -10,19 +9,15 @@ def load_sheets(uploaded_file):
             sheet_name=["Star Task PK", "Talent PK"]
         )
     except ImportError:
-        st.error(
-            "Missing engine for .xlsx files. Install with:\n\n"
-            "    pip install openpyxl\n\n"
-            "and restart."
-        )
+        st.error("Missing engine for .xlsx files. Please install:\n\n    pip install openpyxl\n\nThen restart.")
         st.stop()
     except Exception as e:
         st.error(f"Error loading Excel file:\n\n{e}")
         st.stop()
 
-def filter_dataframe(df: pd.DataFrame, selected_agencies: list[str]) -> pd.DataFrame:
+def filter_dataframe(df: pd.DataFrame, agency_list: list[str]) -> pd.DataFrame:
     """Filter by Agency Name and format Date."""
-    df = df[df["Agency Name"].isin(selected_agencies)].copy()
+    df = df[df["Agency Name"].isin(agency_list)].copy()
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
     return df
@@ -31,10 +26,9 @@ def main():
     st.set_page_config(page_title="Agency Filter App", layout="wide")
     st.title("✨ Star Task PK & Talent PK Agency Filter")
     st.write(
-        "Upload your Excel workbook to filter Star Task PK and Talent PK sheets by:\n"
-        "- Agency Name (only Alpha Agency and Rckless)\n"
-        "- No dropdowns—use native Streamlit filters below\n"
-        "- Display columns: Date, PK Time, Agency Name, ID 1, Agency Name(1), ID 2"
+        "Upload your Excel workbook to filter Star Task PK and Talent PK by:\n"
+        "- Agency Name (Alpha Agency and Rckless)\n"
+        "- Manual input filters for Date, ID 1, and ID 2"
     )
 
     uploaded_file = st.file_uploader("Upload Excel workbook (.xlsx)", type=["xlsx"])
@@ -44,50 +38,40 @@ def main():
 
     # Load sheets
     sheets = load_sheets(uploaded_file)
-
-    # Hard-coded filter for agencies
     selected_agencies = ["Alpha Agency", "Rckless"]
 
-    # Define final column set
-    display_columns = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
+    # Display columns
+    display_cols = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
 
-    def prep(df: pd.DataFrame) -> pd.DataFrame:
+    def prepare(df: pd.DataFrame) -> pd.DataFrame:
         if df.empty:
-            return pd.DataFrame(columns=display_columns)
+            return pd.DataFrame(columns=display_cols)
         df = filter_dataframe(df, selected_agencies)
-        df = df[[col for col in display_columns if col in df.columns]]
-        return df
+        return df[[col for col in display_cols if col in df.columns]]
 
-    df_star   = prep(sheets.get("Star Task PK", pd.DataFrame()))
-    df_talent = prep(sheets.get("Talent PK",    pd.DataFrame()))
+    df_star   = prepare(sheets.get("Star Task PK", pd.DataFrame()))
+    df_talent = prepare(sheets.get("Talent PK",    pd.DataFrame()))
 
-    # Native filters (no dropdowns)
-    st.subheader("🔍 Apply Data Filters")
+    st.subheader("🔍 Text Filters")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        date_filter = st.text_input("Filter by Date (e.g. 20/07/2025)", "")
+    with col2:
+        id1_filter = st.text_input("Filter by ID 1", "")
+    with col3:
+        id2_filter = st.text_input("Filter by ID 2", "")
 
-    def apply_native_filters(df: pd.DataFrame, label: str) -> pd.DataFrame:
-        if df.empty:
-            st.warning(f"No data available in {label} after filtering.")
-            return df
-
-        # Apply column filters directly
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            day_filter = st.text_input(f"{label} — Filter by Day (e.g. Monday)", "")
-        with col2:
-            id1_filter = st.text_input(f"{label} — Filter by ID 1", "")
-        with col3:
-            id2_filter = st.text_input(f"{label} — Filter by ID 2", "")
-
-        if "Day" in df.columns and day_filter:
-            df = df[df["Day"].astype(str).str.contains(day_filter, case=False, na=False)]
-        if "ID 1" in df.columns and id1_filter:
+    def apply_filters(df: pd.DataFrame) -> pd.DataFrame:
+        if date_filter:
+            df = df[df["Date"].astype(str).str.contains(date_filter, case=False, na=False)]
+        if id1_filter and "ID 1" in df.columns:
             df = df[df["ID 1"].astype(str).str.contains(id1_filter, case=False, na=False)]
-        if "ID 2" in df.columns and id2_filter:
+        if id2_filter and "ID 2" in df.columns:
             df = df[df["ID 2"].astype(str).str.contains(id2_filter, case=False, na=False)]
         return df
 
-    df_star_filtered   = apply_native_filters(df_star, "Star Task PK")
-    df_talent_filtered = apply_native_filters(df_talent, "Talent PK")
+    df_star_filtered   = apply_filters(df_star)
+    df_talent_filtered = apply_filters(df_talent)
 
     st.subheader("📋 Star Task PK – Results")
     st.dataframe(df_star_filtered)
