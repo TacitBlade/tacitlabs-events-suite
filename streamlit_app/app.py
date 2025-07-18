@@ -22,9 +22,9 @@ def filter_dataframe(df: pd.DataFrame, agency_list: list[str]) -> pd.DataFrame:
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
     return df
 
-def apply_manual_filters(df: pd.DataFrame, date_filter, id1_filter, id2_filter):
-    if date_filter:
-        df = df[df["Date"].astype(str).str.contains(date_filter, case=False, na=False)]
+def apply_filters(df: pd.DataFrame, selected_date, id1_filter, id2_filter):
+    if selected_date:
+        df = df[df["Date"] == selected_date]
     if "ID 1" in df.columns and id1_filter:
         df = df[df["ID 1"].astype(str).str.contains(id1_filter, case=False, na=False)]
     if "ID 2" in df.columns and id2_filter:
@@ -35,10 +35,11 @@ def main():
     st.set_page_config(page_title="Agency Filter App", layout="wide")
     st.title("✨ Star Task PK & Talent PK Filter")
     st.write(
-        "Upload your Excel workbook to filter Star Task PK and Talent PK data for:\n"
-        "- Agency Name (Alpha Agency and Rckless only)\n"
-        "- Manual input filtering for Date, ID 1, and ID 2\n"
-        "- Display: Date, PK Time, Agency Name, ID 1, Agency Name(1), ID 2"
+        "Upload your Excel workbook to filter event data by:\n"
+        "- Agency Name (Alpha Agency and Rckless)\n"
+        "- Dropdown selection for Date\n"
+        "- Manual filters for ID 1 and ID 2\n"
+        "- Columns shown: Date, PK Time, Agency Name, ID 1, Agency Name(1), ID 2"
     )
 
     uploaded_file = st.file_uploader("Upload Excel workbook (.xlsx)", type=["xlsx"])
@@ -47,7 +48,7 @@ def main():
         return
 
     sheets = load_sheets(uploaded_file)
-    selected_agencies = ["Alpha Agency", "RCKLESS"]
+    selected_agencies = ["Alpha Agency", "Rckless"]
     display_cols = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
 
     def prepare(df: pd.DataFrame) -> pd.DataFrame:
@@ -59,17 +60,21 @@ def main():
     df_star   = prepare(sheets.get("Star Task PK", pd.DataFrame()))
     df_talent = prepare(sheets.get("Talent PK",    pd.DataFrame()))
 
-    st.subheader("🔍 Manual Filters (Text Match)")
+    # Combine for unified filtering
+    combined_all = pd.concat([df_star, df_talent], ignore_index=True)
+    unique_dates = combined_all["Date"].dropna().unique().tolist()
+
+    st.subheader("🔍 Filters")
     col1, col2, col3 = st.columns(3)
     with col1:
-        date_input = st.text_input("Filter by Date (DD/MM/YYYY)", "")
+        selected_date = st.selectbox("Select Date (DD/MM/YYYY)", options=unique_dates)
     with col2:
         id1_input = st.text_input("Filter by ID 1", "")
     with col3:
         id2_input = st.text_input("Filter by ID 2", "")
 
-    df_star_filtered   = apply_manual_filters(df_star, date_input, id1_input, id2_input)
-    df_talent_filtered = apply_manual_filters(df_talent, date_input, id1_input, id2_input)
+    df_star_filtered   = apply_filters(df_star, selected_date, id1_input, id2_input)
+    df_talent_filtered = apply_filters(df_talent, selected_date, id1_input, id2_input)
 
     st.subheader("📋 Star Task PK – Filtered Results")
     st.dataframe(df_star_filtered)
@@ -77,12 +82,12 @@ def main():
     st.subheader("📋 Talent PK – Filtered Results")
     st.dataframe(df_talent_filtered)
 
-    combined = pd.concat([df_star_filtered, df_talent_filtered], ignore_index=True)
+    combined_filtered = pd.concat([df_star_filtered, df_talent_filtered], ignore_index=True)
     st.subheader("📎 Combined Results")
-    st.dataframe(combined)
+    st.dataframe(combined_filtered)
 
-    if not combined.empty:
-        csv_bytes = combined.to_csv(index=False).encode("utf-8")
+    if not combined_filtered.empty:
+        csv_bytes = combined_filtered.to_csv(index=False).encode("utf-8")
         st.download_button(
             "Download Combined CSV",
             data=csv_bytes,
