@@ -20,3 +20,10 @@ button[data-baseweb="button"] {
 button[data-baseweb="button"]:hover {
     background-color: #2E3A8C;
 }
+@media screen and (max-width: 768px) {
+    h1 { font-size: 1.5rem; }
+    h2, h3 { font-size: 1.25rem; }
+    .block-container {
+        padding: 1rem;
+    }
+}
