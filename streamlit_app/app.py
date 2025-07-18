@@ -19,7 +19,7 @@ def filter_dataframe(df: pd.DataFrame, agency_list: list[str]) -> pd.DataFrame:
     """Filter by Agency Name and format Date."""
     df = df[df["Agency Name"].isin(agency_list)].copy()
     if "Date" in df.columns:
-        df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     return df
 
 def apply_filters(df: pd.DataFrame, selected_date, id1_filter, id2_filter):
@@ -31,13 +31,19 @@ def apply_filters(df: pd.DataFrame, selected_date, id1_filter, id2_filter):
         df = df[df["ID 2"].astype(str).str.contains(id2_filter, case=False, na=False)]
     return df
 
+def format_display(df: pd.DataFrame) -> pd.DataFrame:
+    # Format the date for display only
+    if "Date" in df.columns:
+        df["Date"] = df["Date"].dt.strftime("%d/%m/%Y")
+    return df
+
 def main():
     st.set_page_config(page_title="Agency Filter App", layout="wide")
     st.title("✨ Star Task PK & Talent PK Filter")
     st.write(
         "Upload your Excel workbook to filter event data by:\n"
-        "- Agency Name (Alpha Agency and Rckless)\n"
-        "- Dropdown selection for Date\n"
+        "- Agencies: Alpha Agency & Rckless\n"
+        "- Select Date via calendar picker\n"
         "- Manual filters for ID 1 and ID 2\n"
         "- Columns shown: Date, PK Time, Agency Name, ID 1, Agency Name(1), ID 2"
     )
@@ -60,14 +66,15 @@ def main():
     df_star   = prepare(sheets.get("Star Task PK", pd.DataFrame()))
     df_talent = prepare(sheets.get("Talent PK",    pd.DataFrame()))
 
-    # Combine for unified filtering
+    # Merge all for unified date options
     combined_all = pd.concat([df_star, df_talent], ignore_index=True)
-    unique_dates = combined_all["Date"].dropna().unique().tolist()
+    combined_all = combined_all.dropna(subset=["Date"])
+    unique_dates = sorted(combined_all["Date"].dropna().dt.date.unique())
 
     st.subheader("🔍 Filters")
     col1, col2, col3 = st.columns(3)
     with col1:
-        selected_date = st.selectbox("Select Date (DD/MM/YYYY)", options=unique_dates)
+        selected_date = st.date_input("Select Date", value=None, min_value=min(unique_dates), max_value=max(unique_dates))
     with col2:
         id1_input = st.text_input("Filter by ID 1", "")
     with col3:
@@ -76,13 +83,16 @@ def main():
     df_star_filtered   = apply_filters(df_star, selected_date, id1_input, id2_input)
     df_talent_filtered = apply_filters(df_talent, selected_date, id1_input, id2_input)
 
+    df_star_display   = format_display(df_star_filtered)
+    df_talent_display = format_display(df_talent_filtered)
+
     st.subheader("📋 Star Task PK – Filtered Results")
-    st.dataframe(df_star_filtered)
+    st.dataframe(df_star_display)
 
     st.subheader("📋 Talent PK – Filtered Results")
-    st.dataframe(df_talent_filtered)
+    st.dataframe(df_talent_display)
 
-    combined_filtered = pd.concat([df_star_filtered, df_talent_filtered], ignore_index=True)
+    combined_filtered = pd.concat([df_star_display, df_talent_display], ignore_index=True)
     st.subheader("📎 Combined Results")
     st.dataframe(combined_filtered)
 
