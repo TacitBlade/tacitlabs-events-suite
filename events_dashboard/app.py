@@ -1,44 +1,48 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+from io import BytesIO
 
-# Load Excel File
+st.set_page_config(page_title="Agency Event Viewer", layout="wide")
+
+# --- Load Excel File or Prompt Upload ---
 excel_path = Path("events_dashboard/assets/July 2025 UK Agency&Host Events .xlsx")
-xls = pd.ExcelFile(excel_path)
+if not excel_path.exists():
+    st.warning("No file found at expected path. Please upload your Excel file:")
+    uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
+    if uploaded_file:
+        xls = pd.ExcelFile(uploaded_file)
+    else:
+        st.stop()  # Wait for upload
+else:
+    xls = pd.ExcelFile(excel_path)
 
-# Sidebar for Sheet Selection
+# --- Sheet Selector ---
 sheet_name = st.sidebar.selectbox("Select Sheet", xls.sheet_names)
-
 df = xls.parse(sheet_name)
 
-# Filters
-allowed_agencies = ["Alpha Agency", "Rckless"]
-available_agencies = df["Agency Name"].dropna().unique()
-filtered_agencies = [a for a in allowed_agencies if a in available_agencies]
+# --- Filter for Alpha & RCKLESS ---
+df = df[df["Agency Name"].isin(["Alpha", "RCKLESS"])]
 
-agency = st.multiselect("Agency Name", filtered_agencies)
+# --- Format Date & Time ---
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
+df["PK Time"] = pd.to_datetime(df["PK Time"], errors="coerce").dt.strftime("%I:%M %p")
 
-date = st.multiselect("Date", df["Date"].dropna().unique())
+# --- Filters ---
 day = st.multiselect("Day", df["Day"].dropna().unique())
-pk_time = st.multiselect("PK Time", df["PK Time"].dropna().unique())
-agency = st.multiselect("Agency Name", ["Alpha Agency", "Rckless"])
 id1 = st.multiselect("ID 1", df["ID 1"].dropna().unique())
 id2 = st.multiselect("ID 2", df["ID 2"].dropna().unique())
 
-# Apply Filters
 filtered_df = df.copy()
-if date: filtered_df = filtered_df[filtered_df["Date"].isin(date)]
 if day: filtered_df = filtered_df[filtered_df["Day"].isin(day)]
-if pk_time: filtered_df = filtered_df[filtered_df["PK Time"].isin(pk_time)]
-if agency: filtered_df = filtered_df[filtered_df["Agency Name"].isin(agency)]
 if id1: filtered_df = filtered_df[filtered_df["ID 1"].isin(id1)]
 if id2: filtered_df = filtered_df[filtered_df["ID 2"].isin(id2)]
 
+# --- Display Data ---
 st.dataframe(filtered_df)
 
-# Download as Excel
+# --- Export as Excel ---
 def convert_df_to_excel(df):
-    from io import BytesIO
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False)
