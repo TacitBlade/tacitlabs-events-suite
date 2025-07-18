@@ -3,6 +3,7 @@ from loaders import load_workbook
 from layout.filters_ui import render_filter_panel
 from layout.results_ui import render_results
 from config import DEFAULT_AGENCIES, DISPLAY_COLUMNS
+from filters import clean_and_filter, apply_manual_filters
 
 def main():
     st.set_page_config(page_title="Agency Event Filter", layout="wide")
