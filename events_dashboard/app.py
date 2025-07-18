@@ -7,7 +7,7 @@ import re
 st.set_page_config(page_title="Talent & Star Task Viewer", layout="wide")
 
 # --- Load File or Prompt for Upload ---
-excel_path = Path("data/July_2025_UK_AgencyHost_Events.xlsx")
+excel_path = Path("events_dashboard/assets/July 2025 UK Agency&Host Events .xlsx")
 if not excel_path.exists():
     st.warning("Excel file not found. Please upload below:")
     uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
