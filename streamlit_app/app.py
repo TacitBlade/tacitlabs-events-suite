@@ -47,7 +47,7 @@ def main():
         return
 
     sheets = load_sheets(uploaded_file)
-    selected_agencies = ["Alpha Agency", "Rckless"]
+    selected_agencies = ["Alpha Agency", "RCKLESS"]
     display_cols = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
 
     def prepare(df: pd.DataFrame) -> pd.DataFrame:
