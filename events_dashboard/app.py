@@ -12,10 +12,16 @@ sheet_name = st.sidebar.selectbox("Select Sheet", xls.sheet_names)
 df = xls.parse(sheet_name)
 
 # Filters
+allowed_agencies = ["Alpha Agency", "Rckless"]
+available_agencies = df["Agency Name"].dropna().unique()
+filtered_agencies = [a for a in allowed_agencies if a in available_agencies]
+
+agency = st.multiselect("Agency Name", filtered_agencies)
+
 date = st.multiselect("Date", df["Date"].dropna().unique())
 day = st.multiselect("Day", df["Day"].dropna().unique())
 pk_time = st.multiselect("PK Time", df["PK Time"].dropna().unique())
-agency = st.multiselect("Agency Name", df["Agency Name"].dropna().unique())
+agency = st.multiselect("Agency Name", ["Alpha Agency", "Rckless"])
 id1 = st.multiselect("ID 1", df["ID 1"].dropna().unique())
 id2 = st.multiselect("ID 2", df["ID 2"].dropna().unique())
 
