@@ -21,7 +21,7 @@ def load_sheets(uploaded_file):
         st.error(f"Error loading Excel file:\n\n{e}")
         st.stop()
 
-def filter_by_agency(df: pd.DataFrame, agencies: list[str], agency_col="Agency") -> pd.DataFrame:
+def filter_by_agency(df: pd.DataFrame, agencies: list[str], agency_col="Agency Name") -> pd.DataFrame:
     """
     Return only rows where df[agency_col] is in agencies.
     If the column is missing, returns an empty DataFrame with the same columns.
@@ -35,7 +35,7 @@ def main():
     st.title("✨ Star Task PK & Talent PK Agency Filter")
     st.write(
         "Upload your Excel workbook, then select which agencies to include "
-        "from the Star Task PK and Talent PK sheets."
+        "from the Star Task PK and Talent PK sheets (looking at ‘Agency Name’)."
     )
 
     uploaded_file = st.file_uploader("Upload Excel workbook (.xlsx)", type=["xlsx"])
@@ -49,9 +49,9 @@ def main():
     # Build sidebar selections
     st.sidebar.header("Filter Options")
     agency_lists = [
-        df["Agency"]
+        df["Agency Name"]
         for df in sheets.values()
-        if isinstance(df, pd.DataFrame) and "Agency" in df.columns
+        if isinstance(df, pd.DataFrame) and "Agency Name" in df.columns
     ]
 
     if agency_lists:
@@ -63,7 +63,7 @@ def main():
         )
     else:
         all_agencies = []
-        st.sidebar.warning("No 'Agency' column found in either sheet.")
+        st.sidebar.warning("No 'Agency Name' column found in either sheet.")
 
     selected_agencies = st.sidebar.multiselect(
         "Select agencies to include",
