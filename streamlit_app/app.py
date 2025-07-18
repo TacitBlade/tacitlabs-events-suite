@@ -38,7 +38,12 @@ def main():
 
     # Load sheets
     sheets = load_sheets(uploaded_file)
-    selected_agencies = ["Alpha Agency", "Rckless"]
+    selected_agencies = ["Alpha Agency", "RCKLESS"]
+    st.write("Select the agencies you want to filter by:")
+    for agency in selected_agencies:
+        if st.checkbox(agency):
+            selected_agencies.append(agency)
+
 
     # Display columns
     display_cols = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
