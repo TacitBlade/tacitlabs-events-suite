@@ -16,13 +16,11 @@ def load_sheets(uploaded_file):
         st.stop()
 
 def clean_and_filter_agencies(df: pd.DataFrame, agencies: list[str]) -> pd.DataFrame:
-    """Normalize 'Agency Name' column and filter rows based on provided list."""
     df = df.copy()
     df["Agency Name"] = df["Agency Name"].astype(str).str.strip().str.upper()
     agencies = [a.upper() for a in agencies]
     df = df[df["Agency Name"].isin(agencies)]
 
-    # Convert 'Date' column
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     return df
@@ -49,7 +47,8 @@ def main():
         "- Agencies: Alpha Agency & Rckless\n"
         "- Calendar picker for Date (DD/MM/YYYY)\n"
         "- Manual filters for ID 1 and ID 2\n"
-        "- Columns shown: Date, PK Time, Agency Name, ID 1, Agency Name(1), ID 2"
+        "- Display: Date, PK Time, Agency Name, ID 1, Agency Name(1), ID 2\n"
+        "- Final results sorted in chronological order"
     )
 
     uploaded_file = st.file_uploader("Upload Excel workbook (.xlsx)", type=["xlsx"])
@@ -101,11 +100,16 @@ def main():
     st.dataframe(df_talent_display)
 
     combined = pd.concat([df_star_display, df_talent_display], ignore_index=True)
-    st.subheader("📎 Combined Results")
-    st.dataframe(combined)
 
-    if not combined.empty:
-        csv_bytes = combined.to_csv(index=False).encode("utf-8")
+    # Sort combined results by Date and PK Time if available
+    sort_columns = [col for col in ["Date", "PK Time"] if col in combined.columns]
+    combined_sorted = combined.sort_values(by=sort_columns).reset_index(drop=True)
+
+    st.subheader("📎 Combined Results (Chronological)")
+    st.dataframe(combined_sorted)
+
+    if not combined_sorted.empty:
+        csv_bytes = combined_sorted.to_csv(index=False).encode("utf-8")
         st.download_button(
             "Download Combined CSV",
             data=csv_bytes,
