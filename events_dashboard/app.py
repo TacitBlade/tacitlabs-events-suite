@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 
 # Load Excel File
-excel_path = Path("data/July_2025_UK_AgencyHost_Events.xlsx")
+excel_path = Path("events_dashboard/assets/July 2025 UK Agency&Host Events .xlsx")
 xls = pd.ExcelFile(excel_path)
 
 # Sidebar for Sheet Selection
