@@ -6,7 +6,7 @@ import re
 
 st.set_page_config(page_title="Agency Event Viewer", layout="wide")
 
-# --- File Load / Uploader ---
+# --- Load File or Prompt Upload ---
 excel_path = Path("data/July_2025_UK_AgencyHost_Events.xlsx")
 if not excel_path.exists():
     st.warning("Excel file not found. Please upload below:")
@@ -17,32 +17,40 @@ if not excel_path.exists():
 else:
     xls = pd.ExcelFile(excel_path)
 
-# --- Sheet Selector with 'ALL' ---
-sheet_options = ["ALL"] + xls.sheet_names
+# --- Detect Relevant Sheets Only ---
+def is_relevant_sheet(sheet_name):
+    try:
+        preview = xls.parse(sheet_name, nrows=1)
+        return any(col in preview.columns for col in ["Talent PK", "Star Task PK"])
+    except:
+        return False
+
+relevant_sheets = [s for s in xls.sheet_names if is_relevant_sheet(s)]
+sheet_options = ["ALL"] + relevant_sheets
 selected_sheet = st.sidebar.selectbox("Select Sheet", sheet_options)
 
-# --- Extract Relevant Columns Only ---
-def extract_relevant(sheet):
-    expected = [
+# --- Extract Columns from Sheet(s) ---
+def extract_relevant(sheet_name):
+    df = xls.parse(sheet_name)
+    keep = [
         "Talent PK", "Star Task PK", "Agency Name", "ID 1", "ID 2",
         "Date", "Day", "PK Time"
     ]
-    available = [col for col in expected if col in sheet.columns]
-    return sheet[available]
+    return df[[col for col in keep if col in df.columns]]
 
 if selected_sheet == "ALL":
-    df = pd.concat([extract_relevant(xls.parse(name)) for name in xls.sheet_names], ignore_index=True)
+    df = pd.concat([extract_relevant(s) for s in relevant_sheets], ignore_index=True)
 else:
-    df = extract_relevant(xls.parse(selected_sheet))
+    df = extract_relevant(selected_sheet)
 
-# --- Filter for Alpha & RCKLESS Only ---
+# --- Filter for Alpha & RCKLESS ---
 df = df[df["Agency Name"].isin(["Alpha", "RCKLESS"])]
 
 # --- Format Date & Day ---
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
 df["Day"] = pd.to_datetime(df["Day"], errors="coerce").dt.day_name()
 
-# --- Parse 24-Hour PK Time to 12-Hour ---
+# --- Format PK Time from 24hr → 12hr ---
 def parse_pk_time(value):
     value = str(value).strip()
     if re.match(r"^\d{1,2}:\d{2}$", value):
@@ -55,7 +63,7 @@ def parse_pk_time(value):
 if "PK Time" in df.columns:
     df["PK Time"] = df["PK Time"].apply(parse_pk_time)
 
-# --- Filter Inputs ---
+# --- Viewer Filters ---
 day = st.multiselect("Day", df["Day"].dropna().unique())
 date = st.multiselect("Date", df["Date"].dropna().unique())
 id1_input = st.text_input("Search by ID 1")
@@ -72,10 +80,10 @@ if id1_input:
 if id2_input:
     filtered_df = filtered_df[filtered_df["ID 2"].astype(str).str.contains(id2_input, case=False, na=False)]
 
-# --- Display Filtered Data ---
+# --- Display Results ---
 st.dataframe(filtered_df)
 
-# --- Excel Download ---
+# --- Download Filtered Spreadsheet ---
 def convert_df_to_excel(dataframe):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
