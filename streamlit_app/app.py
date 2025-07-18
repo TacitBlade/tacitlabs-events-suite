@@ -52,7 +52,7 @@ def main():
         return
 
     sheets = load_sheets(uploaded_file)
-    agencies = ["Alpha Agency", "Rckless"]
+    agencies = ["Alpha Agency", "Rckless Only"]
     columns_to_display = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
 
     def prepare(df: pd.DataFrame):
