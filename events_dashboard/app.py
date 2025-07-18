@@ -25,7 +25,7 @@ df = xls.parse(sheet_name)
 df = df[df["Agency Name"].isin(["Alpha", "RCKLESS"])]
 
 # --- Format Date & Time ---
-df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.date.astype(str)
 df["PK Time"] = pd.to_datetime(df["PK Time"], errors="coerce").dt.strftime("%I:%M %p")
 
 # --- Filters ---
