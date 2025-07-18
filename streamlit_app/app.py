@@ -1,7 +1,7 @@
 import streamlit as st
 from loaders import load_workbook
-from filters import clean_and_filter, apply_manual_filters
-from layout import render_filter_panel, render_results
+from layout.filters_ui import render_filter_panel
+from layout.results_ui import render_results
 from config import DEFAULT_AGENCIES, DISPLAY_COLUMNS
 
 def main():
