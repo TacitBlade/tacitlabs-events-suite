@@ -6,7 +6,7 @@ import re
 
 st.set_page_config(page_title="Agency Event Viewer", layout="wide")
 
-# --- Load File or Prompt Upload ---
+# --- Load File or Uploader ---
 excel_path = Path("data/July_2025_UK_AgencyHost_Events.xlsx")
 if not excel_path.exists():
     st.warning("Excel file not found. Please upload below:")
@@ -17,7 +17,7 @@ if not excel_path.exists():
 else:
     xls = pd.ExcelFile(excel_path)
 
-# --- Detect Relevant Sheets Only ---
+# --- Sheet Filter: Only Sheets with Talent PK or Star Task PK ---
 def is_relevant_sheet(sheet_name):
     try:
         preview = xls.parse(sheet_name, nrows=1)
@@ -26,31 +26,42 @@ def is_relevant_sheet(sheet_name):
         return False
 
 relevant_sheets = [s for s in xls.sheet_names if is_relevant_sheet(s)]
-sheet_options = ["ALL"] + relevant_sheets
-selected_sheet = st.sidebar.selectbox("Select Sheet", sheet_options)
 
-# --- Extract Columns from Sheet(s) ---
+if not relevant_sheets:
+    st.error("No sheets found with Talent PK or Star Task PK columns.")
+    st.stop()
+
+# --- Extract Expected Columns ---
 def extract_relevant(sheet_name):
     df = xls.parse(sheet_name)
-    keep = [
+    expected = [
         "Talent PK", "Star Task PK", "Agency Name", "ID 1", "ID 2",
         "Date", "Day", "PK Time"
     ]
-    return df[[col for col in keep if col in df.columns]]
+    return df[[col for col in expected if col in df.columns]]
 
+# --- Sheet Selector UI ---
+sheet_options = ["ALL"] + relevant_sheets
+selected_sheet = st.sidebar.selectbox("Select Sheet", sheet_options)
+
+# --- Load Selected or ALL Sheets ---
 if selected_sheet == "ALL":
-    df = pd.concat([extract_relevant(s) for s in relevant_sheets], ignore_index=True)
+    extracted_list = [extract_relevant(s) for s in relevant_sheets]
+    extracted_list = [df for df in extracted_list if not df.empty]
+    if not extracted_list:
+        st.error("Relevant sheets are empty.")
+        st.stop()
+    df = pd.concat(extracted_list, ignore_index=True)
 else:
     df = extract_relevant(selected_sheet)
 
-# --- Filter for Alpha & RCKLESS ---
+# --- Filter for Specific Agencies ---
 df = df[df["Agency Name"].isin(["Alpha", "RCKLESS"])]
 
-# --- Format Date & Day ---
+# --- Format Date, Day, PK Time ---
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
 df["Day"] = pd.to_datetime(df["Day"], errors="coerce").dt.day_name()
 
-# --- Format PK Time from 24hr → 12hr ---
 def parse_pk_time(value):
     value = str(value).strip()
     if re.match(r"^\d{1,2}:\d{2}$", value):
@@ -63,7 +74,7 @@ def parse_pk_time(value):
 if "PK Time" in df.columns:
     df["PK Time"] = df["PK Time"].apply(parse_pk_time)
 
-# --- Viewer Filters ---
+# --- Filter Controls ---
 day = st.multiselect("Day", df["Day"].dropna().unique())
 date = st.multiselect("Date", df["Date"].dropna().unique())
 id1_input = st.text_input("Search by ID 1")
@@ -80,10 +91,10 @@ if id1_input:
 if id2_input:
     filtered_df = filtered_df[filtered_df["ID 2"].astype(str).str.contains(id2_input, case=False, na=False)]
 
-# --- Display Results ---
+# --- Display Viewer ---
 st.dataframe(filtered_df)
 
-# --- Download Filtered Spreadsheet ---
+# --- Download Excel ---
 def convert_df_to_excel(dataframe):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
