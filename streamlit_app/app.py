@@ -27,7 +27,7 @@ def filter_by_agency(df: pd.DataFrame, agencies: list[str], agency_col="Agency N
     return df[df[agency_col].isin(agencies)].reset_index(drop=True)
 
 def format_date_column(df: pd.DataFrame, date_col="Date") -> pd.DataFrame:
-    """Convert date to DD/MM/YYYY (no time)."""
+    """Convert datetime to DD/MM/YYYY (no time)."""
     if date_col in df.columns:
         df[date_col] = pd.to_datetime(df[date_col]).dt.strftime("%d/%m/%Y")
     return df
@@ -37,7 +37,7 @@ def main():
     st.title("✨ Star Task PK & Talent PK Agency Filter")
     st.write(
         "Upload your Excel workbook and select agencies to include (filtering on “Agency Name”).\n\n"
-        "Results will show only Date, PK Time, Agency Name, ID 1, and ID 2, "
+        "Results will show only Date, PK Time, Agency Name, ID 1, Agency Name(1), and ID 2,\n"
         "with dates formatted as DD/MM/YYYY."
     )
 
@@ -77,11 +77,17 @@ def main():
     df_star   = filter_by_agency(sheets.get("Star Task PK", pd.DataFrame()), selected_agencies)
     df_talent = filter_by_agency(sheets.get("Talent PK",    pd.DataFrame()), selected_agencies)
 
-    # Define the columns to display
-    cols_to_show = ["Date", "PK Time", "Agency Name", "ID 1", "ID 2"]
+    # Columns to display
+    cols_to_show = [
+        "Date",
+        "PK Time",
+        "Agency Name",
+        "ID 1",
+        "Agency Name(1)",
+        "ID 2"
+    ]
 
     def prepare(df: pd.DataFrame) -> pd.DataFrame:
-        # Format date and subset columns
         df = format_date_column(df, date_col="Date")
         return df[[c for c in cols_to_show if c in df.columns]]
 
