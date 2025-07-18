@@ -15,8 +15,14 @@ def load_sheets(uploaded_file):
         st.error(f"Error loading Excel file:\n\n{e}")
         st.stop()
 
-def filter_dataframe(df: pd.DataFrame, agencies: list[str]) -> pd.DataFrame:
-    df = df[df["Agency Name"].isin(agencies)].copy()
+def clean_and_filter_agencies(df: pd.DataFrame, agencies: list[str]) -> pd.DataFrame:
+    """Normalize 'Agency Name' column and filter rows based on provided list."""
+    df = df.copy()
+    df["Agency Name"] = df["Agency Name"].astype(str).str.strip().str.upper()
+    agencies = [a.upper() for a in agencies]
+    df = df[df["Agency Name"].isin(agencies)]
+
+    # Convert 'Date' column
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     return df
@@ -52,19 +58,19 @@ def main():
         return
 
     sheets = load_sheets(uploaded_file)
-    agencies = ["Alpha Agency", "Rckless Only"]
-    columns_to_display = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
+    selected_agencies = ["Alpha Agency", "Rckless"]
+    target_columns = ["Date", "PK Time", "Agency Name", "ID 1", "Agency Name(1)", "ID 2"]
 
     def prepare(df: pd.DataFrame):
         if df.empty:
-            return pd.DataFrame(columns=columns_to_display)
-        df = filter_dataframe(df, agencies)
-        return df[[c for c in columns_to_display if c in df.columns]]
+            return pd.DataFrame(columns=target_columns)
+        df = clean_and_filter_agencies(df, selected_agencies)
+        return df[[c for c in target_columns if c in df.columns]]
 
     df_star = prepare(sheets.get("Star Task PK", pd.DataFrame()))
     df_talent = prepare(sheets.get("Talent PK", pd.DataFrame()))
-    df_all = pd.concat([df_star, df_talent], ignore_index=True)
-    df_all = df_all.dropna(subset=["Date"])
+    df_all = pd.concat([df_star, df_talent], ignore_index=True).dropna(subset=["Date"])
+
     available_dates = sorted(df_all["Date"].dt.date.unique())
 
     st.subheader("🔍 Filters")
