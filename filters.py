@@ -1,25 +1,34 @@
-# filters.py
 import pandas as pd
+import streamlit as st
 
 def clean_and_filter(raw_sheets: dict, agency_fallback: list):
     df_star = raw_sheets["Star Task PK"].copy()
     df_talent = raw_sheets["Talent PK"].copy()
 
-    for df in [df_star, df_talent]:
-        df["Date"] = pd.to_datetime(df["Event Date"], errors="coerce")
-        df["Agency Name"] = df["Agency Name"].fillna("Unknown")
+    for df_name, df in zip(["Star", "Talent"], [df_star, df_talent]):
+        # 🛡️ Protect against missing columns
+        if "Event Date" not in df.columns:
+            st.sidebar.error(f"⚠️ '{df_name}' sheet missing 'Event Date' column.")
+            df["Event Date"] = pd.NaT  # Add empty column
+        else:
+            df["Event Date"] = pd.to_datetime(df["Event Date"], errors="coerce")
+
+        if "Agency Name" not in df.columns:
+            st.sidebar.error(f"⚠️ '{df_name}' sheet missing 'Agency Name' column.")
+            df["Agency Name"] = "Unknown"
+        else:
+            df["Agency Name"] = df["Agency Name"].fillna("Unknown")
 
     date_options = sorted(df_star["Event Date"].dropna().dt.date.unique())
-
     return df_star, df_talent, date_options
 
 def apply_manual_filters(df, date=None, id1=None, id2=None, agency=None):
-    if date:
-        df = df[df["Date"].dt.date == date]
+    if "Event Date" in df.columns and date:
+        df = df[df["Event Date"].dt.date == date]
     if id1:
-        df = df[df["ID 1"] == id1]
+        df = df[df.get("ID 1", "") == id1]
     if id2:
-        df = df[df["ID 2"] == id2]
-    if agency and agency != "All Agencies":
+        df = df[df.get("ID 2", "") == id2]
+    if "Agency Name" in df.columns and agency and agency != "All Agencies":
         df = df[df["Agency Name"] == agency]
     return df
