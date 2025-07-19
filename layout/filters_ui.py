@@ -6,7 +6,7 @@ def render_filter_panel(date_options):
 
     with col1:
         selected_date = st.date_input(
-            "Pick a Date – DD/MM/YYYY",
+            "Pick a Date",
             value=None,
             min_value=min(date_options),
             max_value=max(date_options),
