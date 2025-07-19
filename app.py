@@ -1,5 +1,9 @@
 # app.py
 import streamlit as st
+import layout.onboarding_ui
+print(dir(layout.onboarding_ui))
+
+
 from config import GOOGLE_SHEET_ID, DEFAULT_AGENCIES
 from loaders import load_google_sheet
 from filters import clean_and_filter, apply_manual_filters, format_for_display
