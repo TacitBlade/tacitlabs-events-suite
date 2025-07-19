@@ -1,7 +1,6 @@
 import streamlit as st
 
 def render_filter_panel(date_options):
-    """Sidebar: calendar picker + ID filters."""
     st.sidebar.header("🔍 Filter Controls")
     col1, col2, col3 = st.sidebar.columns(3)
 

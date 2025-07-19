@@ -1,12 +1,5 @@
-# config.py
+DEFAULT_AGENCIES = ["Alpha Agency", "Rckless"]
 
-# 🔹 Agencies to pre-filter across both sheets
-DEFAULT_AGENCIES = [
-    "Alpha Agency",
-    "Rckless"
-]
-
-# 🔹 Columns to display across app tables (chronological, branded)
 DISPLAY_COLUMNS = [
     "Date",
     "PK Time",
