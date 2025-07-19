@@ -5,19 +5,22 @@ import pandas as pd
 def _format_view(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    # ⏱ Format date + time
+    # 🗓 Format date and time
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
     df["Time"] = df["PK Time"].astype(str)
 
-    # 🏢 Host agency
+    # 🏢 Host agency (ID 1)
     df["Agency.1"] = df["Agency Name"].fillna("Unknown")
+    df["ID 1"] = df.get("ID 1", "")
 
-    # 🧠 Build live ID-to-agency map from all ID 1 / Agency Name pairs
-    id_agency_map = df.dropna(subset=["ID 1", "Agency Name"]).set_index("ID 1")["Agency Name"].to_dict()
+    # 🤝 Build ID-to-agency map from ID 1 data in the sheet
+    id_to_agency = df.dropna(subset=["ID 1", "Agency Name"]).set_index("ID 1")["Agency Name"].to_dict()
 
-    # 🏢 Opponent agency
-    df["Agency.2"] = df["ID 2"].map(id_agency_map).fillna("Unknown")
+    # 🏢 Opponent agency (ID 2)
+    df["ID 2"] = df.get("ID 2", "")
+    df["Agency.2"] = df["ID 2"].map(id_to_agency).fillna("Unknown")
 
+    # 🎯 Final viewer columns
     return df[["Date", "Time", "ID 1", "Agency.1", "ID 2", "Agency.2"]].sort_values(["Date", "Time"]).reset_index(drop=True)
 
 def render_results(df_star, df_talent):
