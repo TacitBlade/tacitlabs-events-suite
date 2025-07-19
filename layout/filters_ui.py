@@ -1,4 +1,3 @@
-# layout/filters_ui.py
 import streamlit as st
 
 def render_filter_panel(date_options, agency_list):

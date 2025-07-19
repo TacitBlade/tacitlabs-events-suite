@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import pandas as pd
 from config import GOOGLE_SHEET_ID
@@ -21,21 +20,27 @@ def main():
 
     df_star, df_talent, date_options = clean_and_filter(raw_sheets, [])
 
-    # 📌 Default agency filter
-    default_agencies = ["Alpha Agency", "RCKLESS"]
-    df_star = df_star[df_star["Agency Name"].isin(default_agencies)]
-    df_talent = df_talent[df_talent["Agency Name"].isin(default_agencies)]
+    # 📌 Show only Alpha Agency and RCKLESS in the viewer on launch
+    launch_agencies = ["Alpha Agency", "RCKLESS"]
+    df_star_launch = df_star[df_star["Agency Name"].isin(launch_agencies)].copy()
+    df_talent_launch = df_talent[df_talent["Agency Name"].isin(launch_agencies)].copy()
 
-    # 🧠 Get list of available agencies for dropdown
-    agency_list = pd.concat([df_star["Agency Name"], df_talent["Agency Name"]]).dropna().unique().tolist()
+    # 🧠 Populate full agency list for dropdown
+    full_agency_list = pd.concat([df_star["Agency Name"], df_talent["Agency Name"]]).dropna().unique().tolist()
 
-    selected_date, id1, id2, selected_agency = render_filter_panel(date_options, agency_list)
+    selected_date, id1, id2, selected_agency = render_filter_panel(date_options, full_agency_list)
 
-    # 🔎 Manual filter layer (still allows interaction)
+    # 🧼 Apply manual filters
     df_filtered_star = apply_manual_filters(df_star, selected_date, id1, id2, selected_agency)
     df_filtered_talent = apply_manual_filters(df_talent, selected_date, id1, id2, selected_agency)
 
-    render_results(df_filtered_star, df_filtered_talent)
+    # 📊 Display launch-filtered viewer
+    render_results(df_star_launch, df_talent_launch)
+
+    # 🧭 Optionally show manually filtered results
+    if selected_agency not in launch_agencies or selected_date or id1 or id2:
+        st.subheader("🎛️ Manual Filtered View")
+        render_results(df_filtered_star, df_filtered_talent)
 
 if __name__ == "__main__":
     main()
