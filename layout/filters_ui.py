@@ -1,8 +1,12 @@
 import streamlit as st
 
-def render_filter_panel(date_options, agency_list):
+def render_filter_panel(date_options, agency_list, sheet_names):
     st.sidebar.header("🔍 Filter Controls")
 
+    # 🗂️ Sheet selection
+    selected_sheet = st.sidebar.selectbox("Sheet", sheet_names)
+
+    # 📅 Date input
     if date_options:
         selected_date = st.sidebar.date_input(
             "Date",
@@ -21,5 +25,5 @@ def render_filter_panel(date_options, agency_list):
     with col2:
         id2 = st.text_input("ID 2", "")
 
-    selected_agency = st.sidebar.selectbox("Agency", sorted(agency_list))
-    return selected_date, id1, id2, selected_agency
+    selected_agency = st.sidebar.selectbox("Agency", agency_list)
+    return selected_sheet, selected_date, id1, id2, selected_agency
