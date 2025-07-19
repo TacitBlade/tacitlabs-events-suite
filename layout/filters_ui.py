@@ -12,4 +12,6 @@ def render_filter_panel(sheet_names, agency_list):
     with col2:
         id2 = st.text_input("ID 2")
 
-    return selected_sheet, selected_agencies, id1, id2
+    selected_range = st.sidebar.selectbox("Date Range", ["All", "Last 7 days", "Last 30 days", "Last 90 days"])
+
+    return selected_sheet, selected_agencies, id1, id2, selected_range
