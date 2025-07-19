@@ -20,25 +20,24 @@ def main():
 
     df_star, df_talent, date_options = clean_and_filter(raw_sheets, [])
 
-    # 🧭 Build full list of agency names
+    # 🧭 Get full list of agencies
     full_agency_list = pd.concat([
         df_star["Agency Name"],
         df_talent["Agency Name"]
     ]).dropna().unique().tolist()
 
-    # 🌟 UI filter panel — selects one agency
+    # 🌟 UI Filter — select one agency, optional
     selected_date, id1, id2, selected_agency = render_filter_panel(date_options, sorted(full_agency_list))
 
-    # 📌 Default to Alpha Agency if no selection (on first launch)
+    # 🔄 Default view: Alpha + RCKLESS if no selection
     default_agencies = ["Alpha Agency", "RCKLESS"]
-    active_agency = selected_agency or default_agencies[0]
+    active_agencies = [selected_agency] if selected_agency else default_agencies
 
-    # 🎯 Filter data
-    df_star_view = df_star[df_star["Agency Name"] == active_agency].copy()
-    df_talent_view = df_talent[df_talent["Agency Name"] == active_agency].copy()
+    df_star_view = df_star[df_star["Agency Name"].isin(active_agencies)].copy()
+    df_talent_view = df_talent[df_talent["Agency Name"].isin(active_agencies)].copy()
 
-    # 🧭 Sidebar hint
-    st.sidebar.info(f"📌 Viewing events for: {active_agency}")
+    # 📊 Final viewer output
+    st.sidebar.info(f"📌 Viewing events for: {', '.join(active_agencies)}")
     render_results(df_star_view, df_talent_view)
 
 if __name__ == "__main__":
