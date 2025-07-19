@@ -20,25 +20,27 @@ def main():
 
     df_star, df_talent, date_options = clean_and_filter(raw_sheets, [])
 
-    # 🧭 Get full list of agencies
-    full_agency_list = pd.concat([
-        df_star["Agency Name"],
-        df_talent["Agency Name"]
-    ]).dropna().unique().tolist()
+    # 📌 Show only Alpha Agency and RCKLESS in the viewer on launch
+    launch_agencies = ["Alpha Agency", "RCKLESS"]
+    df_star_launch = df_star[df_star["Agency Name"].isin(launch_agencies)].copy()
+    df_talent_launch = df_talent[df_talent["Agency Name"].isin(launch_agencies)].copy()
 
-    # 🌟 UI Filter — select one agency, optional
-    selected_date, id1, id2, selected_agency = render_filter_panel(date_options, sorted(full_agency_list))
+    # 🧠 Populate full agency list for dropdown
+    full_agency_list = pd.concat([df_star["Agency Name"], df_talent["Agency Name"]]).dropna().unique().tolist()
 
-    # 🔄 Default view: Alpha + RCKLESS if no selection
-    default_agencies = ["Alpha Agency", "RCKLESS"]
-    active_agencies = [selected_agency] if selected_agency else default_agencies
+    selected_date, id1, id2, selected_agency = render_filter_panel(date_options, full_agency_list)
 
-    df_star_view = df_star[df_star["Agency Name"].isin(active_agencies)].copy()
-    df_talent_view = df_talent[df_talent["Agency Name"].isin(active_agencies)].copy()
+    # 🧼 Apply manual filters
+    df_filtered_star = apply_manual_filters(df_star, selected_date, id1, id2, selected_agency)
+    df_filtered_talent = apply_manual_filters(df_talent, selected_date, id1, id2, selected_agency)
 
-    # 📊 Final viewer output
-    st.sidebar.info(f"📌 Viewing events for: {', '.join(active_agencies)}")
-    render_results(df_star_view, df_talent_view)
+    # 📊 Display launch-filtered viewer
+    render_results(df_star_launch, df_talent_launch)
+
+    # 🧭 Optionally show manually filtered results
+    if selected_agency not in launch_agencies or selected_date or id1 or id2:
+        st.subheader("🎛️ Manual Filtered View")
+        render_results(df_filtered_star, df_filtered_talent)
 
 if __name__ == "__main__":
     main()
