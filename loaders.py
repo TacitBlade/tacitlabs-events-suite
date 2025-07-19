@@ -1,15 +1,25 @@
-import streamlit as st
+# loaders.py
+import requests
 import pandas as pd
 
-def load_workbook(uploaded_file):
-    try:
-        return pd.read_excel(uploaded_file, sheet_name=["Star Task PK", "Talent PK"])
-    except ImportError:
-        st.error("Missing Excel engine. Try: pip install openpyxl")
-        st.stop()
-    except ValueError as ve:
-        st.error(f"Missing sheets: {ve}")
-        st.stop()
-    except Exception as e:
-        st.error(f"Excel loading error: {e}")
-        st.stop()
+def fetch_sheet_from_google(sheet_id: str, filename: str = "AgencyEvents.xlsx") -> str:
+    """
+    Downloads a Google Sheet as an Excel file and saves it locally.
+    Sheet must be link-accessible with 'Anyone with the link can view'.
+    """
+    export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx"
+    response = requests.get(export_url)
+
+    if response.status_code == 200:
+        with open(filename, "wb") as f:
+            f.write(response.content)
+        return filename
+    else:
+        raise Exception(f"🚫 Failed to fetch sheet. Status code: {response.status_code}")
+
+def load_google_sheet(sheet_id: str) -> dict:
+    """
+    Downloads and loads sheet contents into a dictionary of DataFrames.
+    """
+    file_path = fetch_sheet_from_google(sheet_id)
+    return pd.read_excel(file_path, sheet_name=["Star Task PK", "Talent PK"])
