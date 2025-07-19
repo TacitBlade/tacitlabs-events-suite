@@ -1,3 +1,5 @@
+import os
+st.info(f"Working directory: {os.getcwd()}")
 import streamlit as st
 from loaders import load_workbook
 from filters import clean_and_filter, apply_manual_filters
