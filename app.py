@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from config import GOOGLE_SHEET_ID
 from loaders import load_google_sheet
-from utils.data_utils import combine_pk_events
+from filters import clean_and_filter, apply_manual_filters
 from layout.onboarding_ui import render_welcome_panel
 from layout.filters_ui import render_filter_panel
 from layout.results_ui import render_results
@@ -18,29 +18,34 @@ def main():
         st.error(f"📡 Sheet download failed: {e}")
         return
 
-    # 🧹 Combine and clean PK events
-    combined_df = combine_pk_events(raw_sheets)
+    df_star, df_talent, date_options = clean_and_filter(raw_sheets, [])
 
-    # 🗂️ Sheet options for selector
-    sheet_names = ["Combined PK Events"]
+    sheet_names = ["Star Task PK", "Talent PK", "Combined"]
+    full_agency_list = pd.concat([
+        df_star["Agency Name"],
+        df_talent["Agency Name"]
+    ]).dropna().unique().tolist()
 
-    # 🧭 Build agency list
-    agency_list = combined_df["Agency Name"].dropna().unique().tolist()
     selected_sheet, selected_date, id1, id2, selected_agency = render_filter_panel(
-        [],  # optional: populate date options later
-        sorted(agency_list),
+        date_options,
+        sorted(full_agency_list),
         sheet_names
     )
 
-    # 📌 Default agencies if none selected
     default_agencies = ["Alpha Agency", "RCKLESS"]
     active_agency = selected_agency or default_agencies[0]
 
-    # 🎯 Filter view
-    df_view = combined_df[combined_df["Agency Name"] == active_agency].copy()
+    df_star_view = df_star[df_star["Agency Name"] == active_agency].copy()
+    df_talent_view = df_talent[df_talent["Agency Name"] == active_agency].copy()
 
     st.sidebar.info(f"📌 Viewing events for: {active_agency}")
-    render_results(df_view, pd.DataFrame())  # Only use one sheet viewer
+
+    if selected_sheet == "Star Task PK":
+        render_results(df_star_view, pd.DataFrame())
+    elif selected_sheet == "Talent PK":
+        render_results(pd.DataFrame(), df_talent_view)
+    else:
+        render_results(df_star_view, df_talent_view)
 
 if __name__ == "__main__":
     main()
