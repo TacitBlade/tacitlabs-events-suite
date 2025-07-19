@@ -6,7 +6,7 @@ def clean_and_filter(raw_sheets: dict, agency_fallback: list):
     df_talent = raw_sheets["Talent PK"].copy()
 
     for df in [df_star, df_talent]:
-        df["Event Date"] = pd.to_datetime(df["Event Date"], errors="coerce")
+        df["Date"] = pd.to_datetime(df["Event Date"], errors="coerce")
         df["Agency Name"] = df["Agency Name"].fillna("Unknown")
 
     date_options = sorted(df_star["Event Date"].dropna().dt.date.unique())
@@ -15,7 +15,7 @@ def clean_and_filter(raw_sheets: dict, agency_fallback: list):
 
 def apply_manual_filters(df, date=None, id1=None, id2=None, agency=None):
     if date:
-        df = df[df["Event Date"].dt.date == date]
+        df = df[df["Date"].dt.date == date]
     if id1:
         df = df[df["ID 1"] == id1]
     if id2:
