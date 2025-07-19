@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
+
 from config import GOOGLE_SHEET_ID
 from loaders import load_google_sheet
-from filters import clean_and_filter, apply_manual_filters
+from utils.data_utils import combine_pk_events
+from utils.filter_utils import filter_events
 from layout.onboarding_ui import render_welcome_panel
 from layout.filters_ui import render_filter_panel
 from layout.results_ui import render_results
@@ -18,34 +20,29 @@ def main():
         st.error(f"📡 Sheet download failed: {e}")
         return
 
-    df_star, df_talent, date_options = clean_and_filter(raw_sheets, [])
+    combined_df, df_star, df_talent = combine_pk_events(raw_sheets)
 
-    sheet_names = ["Star Task PK", "Talent PK", "Combined"]
-    full_agency_list = pd.concat([
+    sheet_names = ["Combined PK Events", "Star Task PK", "Talent PK"]
+    all_agencies = pd.concat([
+        combined_df["Agency Name"],
         df_star["Agency Name"],
         df_talent["Agency Name"]
     ]).dropna().unique().tolist()
 
-    selected_sheet, selected_date, id1, id2, selected_agency = render_filter_panel(
-        date_options,
-        sorted(full_agency_list),
-        sheet_names
-    )
+    selected_sheet, selected_agencies, id1, id2 = render_filter_panel(sheet_names, sorted(all_agencies))
 
-    default_agencies = ["Alpha Agency", "RCKLESS"]
-    active_agency = selected_agency or default_agencies[0]
-
-    df_star_view = df_star[df_star["Agency Name"] == active_agency].copy()
-    df_talent_view = df_talent[df_talent["Agency Name"] == active_agency].copy()
-
-    st.sidebar.info(f"📌 Viewing events for: {active_agency}")
+    if not selected_agencies:
+        selected_agencies = ["Alpha Agency", "RCKLESS"]
 
     if selected_sheet == "Star Task PK":
-        render_results(df_star_view, pd.DataFrame())
+        filtered_df = filter_events(df_star, selected_agencies, id1, id2)
+        render_results(filtered_df, pd.DataFrame())
     elif selected_sheet == "Talent PK":
-        render_results(pd.DataFrame(), df_talent_view)
+        filtered_df = filter_events(df_talent, selected_agencies, id1, id2)
+        render_results(pd.DataFrame(), filtered_df)
     else:
-        render_results(df_star_view, df_talent_view)
+        filtered_df = filter_events(combined_df, selected_agencies, id1, id2)
+        render_results(filtered_df, pd.DataFrame())
 
 if __name__ == "__main__":
     main()
