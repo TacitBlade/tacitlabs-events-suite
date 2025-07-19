@@ -1,4 +1,4 @@
-DEFAULT_AGENCIES = ["Alpha Agency", "Rckless"]
+DEFAULT_AGENCIES = ["Alpha Agency", "RCKLESS"]
 
 DISPLAY_COLUMNS = [
     "Date",
