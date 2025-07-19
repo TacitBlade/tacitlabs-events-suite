@@ -1,26 +1,26 @@
-# layout/results_ui.py
+# layout/filters_ui.py
 import streamlit as st
-import pandas as pd
 
-def _format_view(df: pd.DataFrame, label: str) -> pd.DataFrame:
-    # Clean date + time fields
-    df = df.copy()
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%d/%m/%Y")
-    df["Time"] = df["PK Time"].astype(str)
-    df["Agency"] = df["Agency Name"].fillna("Unknown")
+def render_filter_panel(date_options, agency_list):
+    st.sidebar.header("🔍 Filter Controls")
 
-    # Trim to essential view
-    return df[["Date", "Time", "Agency"]].sort_values(["Date", "Time"]).reset_index(drop=True)
+    if date_options:
+        selected_date = st.sidebar.date_input(
+            "Date",
+            value=None,
+            min_value=min(date_options),
+            max_value=max(date_options),
+            format="DD/MM/YYYY"
+        )
+    else:
+        st.sidebar.warning("📅 No valid dates found in sheet.")
+        selected_date = None
 
-def render_results(df_star, df_talent):
-    st.subheader("⭐ Star Task PK Viewer")
-    df_star_view = _format_view(df_star, "Star")
-    st.dataframe(df_star_view, use_container_width=True)
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        id1 = st.text_input("ID 1", "")
+    with col2:
+        id2 = st.text_input("ID 2", "")
 
-    st.subheader("🎯 Talent PK Viewer")
-    df_talent_view = _format_view(df_talent, "Talent")
-    st.dataframe(df_talent_view, use_container_width=True)
-
-    st.subheader("📋 Combined Event Viewer")
-    df_combined = pd.concat([df_star_view, df_talent_view], ignore_index=True)
-    st.dataframe(df_combined.sort_values(["Date", "Time"]).reset_index(drop=True), use_container_width=True)
+    selected_agency = st.sidebar.selectbox("Agency", sorted(agency_list))
+    return selected_date, id1, id2, selected_agency
